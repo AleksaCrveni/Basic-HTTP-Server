@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using System.Text;
 
 namespace Server
 {
@@ -43,11 +44,46 @@ namespace Server
 
     public void Process()
     {
+      Console.WriteLine("Server started!");
+      byte[] checkAliveBuffer = new byte[1] { 1 };
+      byte[] buffer = new byte[1024];
       while (true)
       {
         Socket s = _listener.Accept();
         Log("Connection accepted!");
+        while (true)
+        {
+          // i feel like this sucks completely
+          if (s == null)
+          {
+            Log("Force closed connection!");
+            break;
+          }
+          try
+          {
+            int sb = s.Send(checkAliveBuffer);
+            if (sb == 0)
+              break;
+          } catch (Exception ex)
+          {
+            break;
+          }
 
+          if (s.Available != 0)
+          {
+            List<string> strings = SocketHelper.ReturnNewLines(s);
+            Log($"Received data at {DateTime.Now.ToLongTimeString()}:");
+            foreach (string str in strings)
+              Log(str);  
+          }
+        }
+
+        if (s != null)
+        {
+          Log("Closing connection");
+          s.Close();
+          Log("Connection closed!");
+        }
       }
     }
 

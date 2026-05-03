@@ -13,7 +13,7 @@ namespace Tests
       string input = "This is\nNew \n LineTest";
       string[] expected = input.Split('\n');
 
-      List<string> res = StreamHelper.ReturnNewLines(TurnStringIntoStream(input));
+      List<string> res = SocketHelper.ReturnNewLines(TurnStringIntoStream(input));
       Debug.Assert(res.Count == expected.Length);
       for (int i = 0; i < expected.Length; i++)
         Debug.Assert(expected[i] == res[i]);
