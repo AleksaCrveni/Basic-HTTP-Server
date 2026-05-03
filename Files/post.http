@@ -1,0 +1,8 @@
+POST /coffee?q=test HTTP/1.1
+Host: localhost:42069
+User-Agent: curl/8.13.0
+Accept: */*
+Content-Type: application/json
+Content-Length: 22
+
+{"flavor":"dark mode"}

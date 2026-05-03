@@ -2,4 +2,5 @@
   <Project Path="Client/Client.csproj" Id="ad882e21-2e79-474d-86b2-81abb2a8f106" />
   <Project Path="Server/Server.csproj" />
   <Project Path="Tests/Tests.csproj" />
+  <Project Path="Utils/Utils.csproj" Id="3fa85a8b-6a1f-4d30-bc9c-ff192707009c" />
 </Solution>

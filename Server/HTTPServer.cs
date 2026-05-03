@@ -71,10 +71,13 @@ namespace Server
 
           if (s.Available != 0)
           {
+            //buffer = new byte[s.Available];
+            //s.Receive(buffer, SocketFlags.None);
             List<string> strings = SocketHelper.ReturnNewLines(s);
             Log($"Received data at {DateTime.Now.ToLongTimeString()}:");
             foreach (string str in strings)
-              Log(str);  
+              Log(str);
+        //    File.WriteAllBytes("get.http", buffer);
           }
         }
 

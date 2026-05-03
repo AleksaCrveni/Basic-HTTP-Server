@@ -26,7 +26,8 @@ namespace Server
         int ind = buffer.IndexOf((byte)'\n');
         if (ind != -1)
         {
-          sb.Append(enc.GetString(buffer.Slice(0, ind)));
+          // shit temp way to account for CRLF not just LFja saja
+          sb.Append(enc.GetString(buffer.Slice(0, ind - 1)));
           res.Add(sb.ToString());
           sb.Clear();
           sb.Append(enc.GetString(buffer.Slice(ind + 1)));
