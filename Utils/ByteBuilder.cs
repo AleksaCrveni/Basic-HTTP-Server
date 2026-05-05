@@ -6,10 +6,10 @@ namespace Utils
 {
   public class ByteBuilder
   {
-    private int INIT_SIZE = 1024;
-    private byte[]? _rentedBuffer;
-    private int _readPos;
-    private int _writePos;
+    public int INIT_SIZE = 1024;
+    public byte[]? _rentedBuffer;
+    public int _readPos;
+    public int _writePos;
 
     public ByteBuilder()
     {
@@ -38,7 +38,7 @@ namespace Utils
         // this is section between start of the buffer and _readPos
         int firstAvailableSectionSize = _readPos;
         int usedSectionLen = _writePos - _readPos; // Length of used section which becomes _writePos after copying
-        if (secondAvailableSectionSize + firstAvailableSectionSize < appendBuffer.Length)
+        if (secondAvailableSectionSize + firstAvailableSectionSize > appendBuffer.Length)
         {
           // this means that we can just move data to the start and we will haev enought space
           _rentedBuffer.AsSpan(_readPos, usedSectionLen).CopyTo(_rentedBuffer);
@@ -101,7 +101,7 @@ namespace Utils
     public string ToString(Encoding enc)
     {
       string res = enc.GetString(_rentedBuffer.AsSpan(_readPos, _writePos));
-      _readPos = _writePos;
+      Clear();
       return res;
     }
     public byte Last() => _writePos > 0 ? _rentedBuffer[_writePos] : (byte)0;
