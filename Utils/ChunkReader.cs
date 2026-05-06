@@ -144,6 +144,7 @@ namespace Utils
               _byteBuilder.Append(buffer.Slice(0, i));
               res = _byteBuilder.ToString();
               _byteBuilder.Append(buff, i + 1);
+              ArrayPool<byte>.Shared.Return(buff);
               return res;
             }
           }
@@ -163,12 +164,13 @@ namespace Utils
       {
         res = _byteBuilder.ToString();
       }
+      ArrayPool<byte>.Shared.Return(buff);
       return res;
     }
 
     public void ReadNextSpanOfBytes(int numOfBytes, ref Span<byte> span)
     {
-      // 
+      
     }
     public void Dispose()
     {
