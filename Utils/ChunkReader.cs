@@ -1,4 +1,6 @@
 ﻿using System.Buffers;
+using System.Diagnostics;
+using System.IO.Pipelines;
 using System.Text;
 
 namespace Utils
@@ -19,19 +21,52 @@ namespace Utils
     }
 
     public string ReadLine() => ReadLine(Encoding.Default);
+    /// <summary>
+    /// I tried to handle all edge cases, but i feel like this isnt best way to write thius
+    /// I think it would probably be less complicated if we always appended buffer to
+    /// byteBuilder first and then just iterated over new range that was added
+    /// </summary>
+    /// <param name="enc"></param>
+    /// <returns></returns>
     public string ReadLine(Encoding enc)
     {
-      return "";
       byte[] buff = ArrayPool<byte>.Shared.Rent(_BPR);
       Span<byte> buffer = buff.AsSpan();
       bool checkNextStart = false;
-
+      string res = string.Empty;
       // check if there is something in the buffer
       // since we might have loaded new line already as a cutoff
-  
 
-
-
+      // clean read we want just \n or \r\n. It also servers as a correction to convert lone \rs in 
+      (int Read, int Write) pos = _byteBuilder.GetPositions();
+      for (int i = pos.Read; i < pos.Write; i++)
+      {
+        if (_byteBuilder._rentedBuffer[i] == '\r')
+        {
+          // make sure we are not at last byte of used area
+          if (i + 1 < pos.Write)
+          {
+            if (_byteBuilder._rentedBuffer[i + 1] == '\n')
+            {
+              res = _byteBuilder.ToString(i);
+              _byteBuilder.EmptyRead(2);
+              return res;
+            }
+            else
+            {
+              // spec says that if there is \r not followed by \n it should be converted to whitespace
+              _byteBuilder._rentedBuffer[i] = (byte)' ';
+            }
+          }
+        }
+        else if (_byteBuilder._rentedBuffer[i] == '\n')
+        {
+          // alone \n is legal
+          res = _byteBuilder.ToString(i);
+          _byteBuilder.EmptyRead(1); // read past \n
+          return res;
+        }
+      }
 
       while (true)
       {
@@ -39,11 +74,22 @@ namespace Utils
         if (rb == 0)
           break;
         int i = 0;
+        // do this since its easier to check if last cutoff was \r and replace it
         if (checkNextStart)
         {
-          if (buffer[i] == '\n')
+          if (buffer[0] == '\n')
           {
-            string res = _byteBuilder.ToString();
+            // -2 to exlcude \r that we wil sk ip later
+            res = _byteBuilder.ToString(_byteBuilder._writePos - _byteBuilder._readPos - 1);
+            _byteBuilder.EmptyRead(1);
+
+            _byteBuilder.Append(buff, 1);
+            ArrayPool<byte>.Shared.Return(buff);
+            return res;
+          }
+          else
+          {
+            _byteBuilder.ReplaceLast((byte)' ');
           }
           i++;
         }
@@ -52,26 +98,72 @@ namespace Utils
         {
           if (buffer[i] == '\r')
           {
-            // check if next is \n
-            // check on next read
-            if (i + 1 < buffer.Length)
-            {
-
-            }
-            else
+            // is last char
+            if (i + 1 == buffer.Length)
             {
               checkNextStart = true;
             }
+            else
+            {
+              if (buffer[i + 1] == '\n')
+              {
+                // append up to \r\n and read it all since we know its only line at this point of the function
+                _byteBuilder.Append(buffer.Slice(0, i));
+                res = _byteBuilder.ToString();
+
+                // this will handle index out of range edge cases like if i + 1 was last char and stuff
+                _byteBuilder.Append(buff, i + 2);
+                ArrayPool<byte>.Shared.Return(buff);
+                return res;
+              }
+              else
+              {
+                // spec says that if there is \r not followed by \n it should be converted to whitespace
+                buffer[i] = (byte)' ';
+              }
+            }
+            // make sure we are not at last byte of used area
           }
           else if (buffer[i] == '\n')
           {
-          
+            if (i == 0)
+            {
+              // this can happen if we do check start because rest of the buffer we might append after we find our line ends with \r and won't know
+              if (_byteBuilder.Last() == '\r')
+              {
+                res = _byteBuilder.ToString(_byteBuilder._writePos - _byteBuilder._readPos - 1);
+                _byteBuilder.EmptyRead(1);
+                _byteBuilder.Append(buff, 1);
+                ArrayPool<byte>.Shared.Return(buff);
+                return res;
+              }
+            }
+            else
+            {
+              // alone \n is legal as well
+              _byteBuilder.Append(buffer.Slice(0, i));
+              res = _byteBuilder.ToString();
+              _byteBuilder.Append(buff, i + 1);
+              return res;
+            }
           }
 
         }
+
+        // we know we didnt find line yet so we will append entire buffer including \r case
+        _byteBuilder.Append(buffer);
       }
 
-      ArrayPool<byte>.Shared.Return(buff);
+      if (_byteBuilder.Last() == '\r')
+      {
+        res = _byteBuilder.ToString(_byteBuilder._writePos - _byteBuilder._readPos - 1);
+        _byteBuilder.Clear();
+      }
+      else
+      {
+        res = _byteBuilder.ToString();
+      }
+      return res;
     }
 
     public void ReadNextSpanOfBytes(int numOfBytes, ref Span<byte> span)

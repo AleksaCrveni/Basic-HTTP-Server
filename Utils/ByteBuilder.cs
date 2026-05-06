@@ -45,9 +45,11 @@ namespace Utils
       _writePos = 0;
     }
 
-    public void Append(byte[] appendBuffer)
+    public void Append(byte[] appendBuffer, int start = 0)
     {
-      Append(appendBuffer.AsSpan());
+      if (start + 1 >= appendBuffer.Length)
+        return;
+      Append(appendBuffer.AsSpan(start));
     }
     public void Append(Span<byte> appendBuffer)
     {
@@ -131,7 +133,14 @@ namespace Utils
       Clear();
       return res;
     }
-    public byte Last() => _writePos > 0 ? _rentedBuffer[_writePos] : (byte)0;
+    public byte Last() => _writePos > 0 ? _rentedBuffer[_writePos - 1] : (byte)0;
+    public void ReplaceLast(byte b)
+    {
+      if (_writePos == 0)
+        _rentedBuffer[0] = b;
+      else
+        _rentedBuffer[_writePos - 1] = b;
+    }
 
     public string ToString(int size) => ToString(size, Encoding.Default);
     public string ToString(int size, Encoding enc)
@@ -144,5 +153,12 @@ namespace Utils
       return res;
     }
 
+    public (int readPos, int writePos) GetPositions() => (_readPos, _writePos);
+    public void EmptyRead(int size)
+    {
+      // gurantee we dont move past write pos
+      int actualMoveSize = Math.Min(size, _writePos - _readPos);
+      Debug.Assert(_readPos <= _writePos);
+    }
   }
 }
