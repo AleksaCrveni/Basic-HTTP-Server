@@ -1,9 +1,36 @@
 ﻿using System.Buffers;
 using System.Diagnostics;
+using System.Runtime.Intrinsics.X86;
 using System.Text;
 
 namespace Utils
 {
+  /// <summary>
+  /// Constraints:
+  // * ReadPos <= WritePos
+  // * Can be only used where we want to be able to just evict/use portions of the buffer
+  // starting from ReadPos up to WritePos in linear fashion.
+
+  /*
+   * Explanation:
+   * Can be used as a byte/string builder
+   * I.e We can use it when in networking where we want to read data from the socket 
+     but do not know full length of the line or string that we are trying to take.
+     So we have to keep track of read and write positions and expand buffer and move data on need
+   * "Fragmentation" of the buffer occurs when we would read X amount of bytes of data from the socket
+     and that read would contain multiple lines or strings, so when we would read only 1 string or line
+     our buffer would end up looking like that
+   * To optimize copying of data :
+     -> We will first calculate if there is available space to append AFTER writePos up to end of the buffer
+       -> If YES we will just append data there and END
+       -> If NO we will will check if there is TOTAL Available space to append new data.
+           -> If YES we will move Used data to the start of the buffer and reset update Read and Write positions,
+               append data and again update WritePos
+           -> If NOT we will GROW buffer (actually rent new one and return current one) by 2 times or up to MAX array size,
+               move data to the start of the buffer and update Read and Write positions and then append data and update Write Pos
+   */
+
+  /// </summary>
   public class ByteBuilder
   {
     public int INIT_SIZE = 1024;

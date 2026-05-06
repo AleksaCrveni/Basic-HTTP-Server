@@ -1,6 +1,10 @@
-﻿using System.Net;
+﻿using System.Diagnostics;
+using System.Linq.Expressions;
+using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices.Marshalling;
 using System.Text;
+using Utils;
 
 namespace Server
 {
@@ -9,6 +13,7 @@ namespace Server
     public Socket _listener;
     public string IP;
     public int PORT;
+    public bool _respWithErrors = true; // this is just simple way to block server errors when 500 occurs or when user responds with it
     public HTTPServer(string ip, int port) 
     {
       IP = ip;
@@ -51,35 +56,59 @@ namespace Server
       {
         Socket s = _listener.Accept();
         Log("Connection accepted!");
-        while (true)
+        FakeSocket fs = new FakeSocket(s);
+        using (ChunkReader r = new ChunkReader(fs))
         {
-          // i feel like this sucks completely
-          if (s == null)
+          while (true)
           {
-            Log("Force closed connection!");
-            break;
-          }
-          try
-          {
-            int sb = s.Send(checkAliveBuffer);
-            if (sb == 0)
+            // i feel like this sucks completely
+            if (s == null)
+            {
+              Log("Force closed connection!");
               break;
-          } catch (Exception ex)
-          {
-            break;
-          }
+            }
+            try
+            {
+              int sb = s.Send(checkAliveBuffer);
+              if (sb == 0)
+                break;
+            }
+            catch (Exception ex)
+            {
+              Debug.WriteLine($"Exception: {ex.Message}!");
+              break;
+            }
 
-          if (s.Available != 0)
-          {
-            //buffer = new byte[s.Available];
-            //s.Receive(buffer, SocketFlags.None);
-            List<string> strings = SocketHelper.ReturnNewLines(s);
-            Log($"Received data at {DateTime.Now.ToLongTimeString()}:");
-            foreach (string str in strings)
-              Log(str);
-        //    File.WriteAllBytes("get.http", buffer);
+            MyHTTPRequest req = new MyHTTPRequest();
+            try
+            {
+              HttpStatusCode respCode = SocketHelper.ParseRequest(r, ref req);
+              if (respCode != HttpStatusCode.OK)
+              {
+                SendResponse(MessageHelper.CreateResponse(respCode, null));
+                break;
+              }
+            }
+            catch (SocketException ex)
+            {
+              // we should check error and see if its client or server issue
+              // this wold mean that something happened with the connection i think, so don't try to read/send again
+              Debug.WriteLine($"Socket exception. NativeError #{ex.NativeErrorCode}");
+              break;
+            }
+            catch (Exception ex)
+            {
+              Debug.WriteLine($"Server error: {ex.Message}");
+              SendResponse(MessageHelper.CreateResponse(HttpStatusCode.InternalServerError, _respWithErrors ? ex.Message : null));
+              break;
+            }
+
+            // call method to process based on target
+
+            break;
           }
         }
+       
 
         if (s != null)
         {
@@ -88,6 +117,11 @@ namespace Server
           Log("Connection closed!");
         }
       }
+    }
+
+    public void SendResponse(MyHTTPResponse r)
+    {
+      
     }
 
     public void Log(string s)

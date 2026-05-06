@@ -13,9 +13,9 @@ namespace Tests
     {
       string[] lines = File.ReadAllLines(Files.POSTExample);
       MyHTTPRequest request = MessageHelper.ParseRequest(lines.ToList());
-      Debug.Assert(request.Method == HTTPMethod.POST);
-      Debug.Assert(request.Target == "/coffee");
-      Debug.Assert(request.Version == "HTTP/1.1");
+      Debug.Assert(request.RequestLine.Method == HTTPMethod.POST);
+      Debug.Assert(request.RequestLine.Target == "/coffee");
+      Debug.Assert(request.RequestLine.Version == "HTTP/1.1");
       Debug.Assert(request.Headers["Host"] == "localhost:42069");
       Debug.Assert(request.Headers["User-Agent"] == "curl/8.13.0");
       Debug.Assert(request.Headers["Accept"] == "*/*");
@@ -25,10 +25,10 @@ namespace Tests
     {
       string[] lines = File.ReadAllLines(Files.POSTExample);
       MyHTTPRequest request = MessageHelper.ParseRequest(lines.ToList());
-      Debug.Assert(request.Method == HTTPMethod.POST);
-      Debug.Assert(request.Target == "/coffee");
-      Debug.Assert(request.Version == "HTTP/1.1");
-      Debug.Assert(request.Query["q"] == "test");
+      Debug.Assert(request.RequestLine.Method == HTTPMethod.POST);
+      Debug.Assert(request.RequestLine.Target == "/coffee");
+      Debug.Assert(request.RequestLine.Version == "HTTP/1.1");
+      Debug.Assert(request.RequestLine.Query["q"] == "test");
       Debug.Assert(request.Headers["Host"] == "localhost:42069");
       Debug.Assert(request.Headers["User-Agent"] == "curl/8.13.0");
       Debug.Assert(request.Headers["Accept"] == "*/*");
