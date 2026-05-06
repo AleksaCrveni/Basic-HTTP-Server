@@ -31,7 +31,7 @@ namespace Utils
     public string ReadLine(Encoding enc)
     {
       byte[] buff = ArrayPool<byte>.Shared.Rent(_BPR);
-      Span<byte> buffer = buff.AsSpan();
+      Span<byte> buffer = buff.AsSpan(0,_BPR);
       bool checkNextStart = false;
       string res = string.Empty;
       // check if there is something in the buffer
