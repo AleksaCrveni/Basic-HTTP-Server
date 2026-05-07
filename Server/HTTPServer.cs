@@ -97,7 +97,7 @@ namespace Server
 
             // call method to process based on target
 
-            SendResponse(fs, MessageHelper.CreateResponse(HttpStatusCode.OK, null));
+            SendResponse(fs, MessageHelper.CreateResponse(HttpStatusCode.OK, "Test response"));
             break;
           }
         }

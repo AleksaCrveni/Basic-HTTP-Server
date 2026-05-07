@@ -24,6 +24,7 @@ namespace Server
       (RequestLine? rl, HttpStatusCode code) = MessageHelper.ParseRequestLine(line);
       if (rl == null)
         return code;
+      request.RequestLine = rl;
 
       line = r.ReadLine();
       List<string> headerLines = new List<string>();
@@ -36,6 +37,7 @@ namespace Server
       (Dictionary<string, string>? headers, code) = MessageHelper.ParseMessageHeaders(headerLines);
       if (headers == null)
         return code;
+      request.Headers = headers;
 
       // header verification , optimize later
       string? transferEncoding = headers.GetValueOrDefault("Transfer-Encoding");
