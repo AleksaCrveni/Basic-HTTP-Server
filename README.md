@@ -1,1 +1,2 @@
 # Server
+Very basic HTTP/1.1 server developed mostly to understand protocol and how HTTP is built on top of TCP and to work out how streamed chuncked data can be processed in a at least decent way performance wise
