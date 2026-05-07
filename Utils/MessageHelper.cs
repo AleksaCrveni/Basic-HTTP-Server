@@ -101,7 +101,7 @@ namespace Utils
         int valStart = index + 1;
         if (span[valStart] == ' ')
           valStart++;
-        int valEnd = span.Length
+        int valEnd = span.Length;
         if (span[span.Length - 1] == ' ')
           valEnd--;
 
@@ -120,70 +120,39 @@ namespace Utils
       return (headers, HttpStatusCode.OK);
     }
 
-    public static MyHTTPRequest ParseRequest(List<string> lines)
-    {
-      return new MyHTTPRequest();
-      //MyHTTPRequest request = new MyHTTPRequest();
-      
-      //// NOTE: do proper checks with spaces ref -> rfc 9112 5.1
-      //for (; currLine < lines.Count; currLine++)
-      //{
-      //  //temp
-      //  if (lines[currLine] == "" || lines[currLine] == "\r\n")
-      //    break;
-
-      //  ReadOnlySpan<char> span = lines[currLine].AsSpan();
-      //  int index = span.IndexOf(':');
-      //  if (index == -1)
-      //    throw new InvalidDataException("Invalid Header!");
-        
-      //  if (span[index-1] == ' ')
-      //    throw new InvalidDataException(": can't be preceded by whitespace!");
-      //  string key = span.Slice(0, index).ToString();
-
-      //  int valStart = index + 1;
-      //  if (span[valStart] == ' ')
-      //    valStart++;
-      //  int valEnd = span.Length;
-      //  //int valEnd = valStart;
-      //  // this will be needed for stream version
-      //  //for (; valEnd < span.Length; valEnd++)
-      //  //{
-      //  //  if (span[valEnd] == ' ' || span[valEnd] == '\r' | span[valEnd] == '\n')
-      //  //    break;
-      //  //}
-      //  //if (valEnd == span.Length)
-      //  //  throw new InvalidDataException("Invalid field value! No end of the value found!");
-
-      //  string value = span.Slice(valStart, valEnd - valStart).ToString();
-
-      //  request.Headers[key] = value;
-      //}
-
-      //// TODO: do some headers verification list
-
-      //string? lenStr = request.Headers.GetValueOrDefault("Content-Length");
-      //if (lenStr == null)
-      //  throw new InvalidDataException("Missing critical headers!");
-      //int len = Convert.ToInt32(lenStr);
-
-      //if (currLine >= lines.Count || (lines[currLine] != "\r\n" && lines[currLine] != ""))
-      //  throw new InvalidDataException("Header r n separation not found");
-
-      //// this is stupid and will be changed onec we start checking these specifically from stream/socket
-      //StringBuilder sb = new StringBuilder();
-      //for (int i = currLine; i < lines.Count; i++)
-      //{
-      //  sb.Append(lines[i]);
-      //}
-
-      //request.Body = sb.ToString();
-      //return request;
-    }
-
     public static MyHTTPResponse CreateResponse(HttpStatusCode statusCode, string? body)
     {
-      return new MyHTTPResponse();
+      MyHTTPResponse r = new MyHTTPResponse();
+      r.Status = statusCode;
+      r.Version = "HTTP/1.1";
+      (Dictionary<string, string> Headers, byte[] Body) data = GetDefaultHeadersAndBody(statusCode, body);
+      r.Headers = data.Headers;
+      r.Body = data.Body;
+      return r;
+    }
+    
+    public static (Dictionary<string, string> Headers, byte[] body) GetDefaultHeadersAndBody(HttpStatusCode statusCode, string? body)
+    {
+      Encoding enc = Encoding.Default;
+      Dictionary<string, string> headers = new Dictionary<string, string>();
+      byte[] bodyArr = Array.Empty<byte>();
+      switch (statusCode)
+      {
+        case HttpStatusCode.OK:
+          headers.Add("Host", "localhost:42069");
+          if (body != null)
+          {
+            headers.Add("Content-Type", "text/plain");
+            bodyArr = enc.GetBytes(body);
+            headers.Add("Content-Length", bodyArr.Length.ToString());
+            headers.Add("Accept", "*/*");
+          }
+          break;
+        default:
+          throw new NotSupportedException($"{statusCode.ToString()} not supported yet!");
+      };
+
+      return (headers, bodyArr);
     }
   }
 }

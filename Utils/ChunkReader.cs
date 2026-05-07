@@ -8,16 +8,18 @@ namespace Utils
   public class ChunkReader : IDisposable
   {
     private FakeSocket _socket;
-    private ByteBuilder _byteBuilder;
+    public ByteBuilder _byteBuilder;
     private int _BPR = 1024; // bytes per read
     public ChunkReader(FakeSocket s)
     {
       _socket = s;
+      _byteBuilder = new ByteBuilder();
     }
     public ChunkReader(int bytesPerRead, FakeSocket s)
     {
       _socket = s;
       _BPR = bytesPerRead;
+      _byteBuilder = new ByteBuilder();
     }
 
     public string ReadLine() => ReadLine(Encoding.Default);
@@ -30,9 +32,6 @@ namespace Utils
     /// <returns></returns>
     public string ReadLine(Encoding enc)
     {
-      byte[] buff = ArrayPool<byte>.Shared.Rent(_BPR);
-      Span<byte> buffer = buff.AsSpan(0,_BPR);
-      bool checkNextStart = false;
       string res = string.Empty;
       // check if there is something in the buffer
       // since we might have loaded new line already as a cutoff
@@ -48,7 +47,7 @@ namespace Utils
           {
             if (_byteBuilder._rentedBuffer[i + 1] == '\n')
             {
-              res = _byteBuilder.ToString(i);
+              res = _byteBuilder.ToString(i - pos.Read);
               _byteBuilder.EmptyRead(2);
               return res;
             }
@@ -62,11 +61,16 @@ namespace Utils
         else if (_byteBuilder._rentedBuffer[i] == '\n')
         {
           // alone \n is legal
-          res = _byteBuilder.ToString(i);
+          res = _byteBuilder.ToString(i - pos.Read);
           _byteBuilder.EmptyRead(1); // read past \n
           return res;
         }
       }
+
+
+      byte[] buff = ArrayPool<byte>.Shared.Rent(_BPR);
+      Span<byte> buffer = buff.AsSpan(0, _BPR);
+      bool checkNextStart = false;
 
       while (true)
       {
@@ -83,7 +87,7 @@ namespace Utils
             res = _byteBuilder.ToString(_byteBuilder._writePos - _byteBuilder._readPos - 1);
             _byteBuilder.EmptyRead(1);
 
-            _byteBuilder.Append(buff, 1);
+            _byteBuilder.Append(buff, 1, rb);
             ArrayPool<byte>.Shared.Return(buff);
             return res;
           }
@@ -112,7 +116,7 @@ namespace Utils
                 res = _byteBuilder.ToString();
 
                 // this will handle index out of range edge cases like if i + 1 was last char and stuff
-                _byteBuilder.Append(buff, i + 2);
+                _byteBuilder.Append(buff, i + 2, rb);
                 ArrayPool<byte>.Shared.Return(buff);
                 return res;
               }
@@ -133,7 +137,7 @@ namespace Utils
               {
                 res = _byteBuilder.ToString(_byteBuilder._writePos - _byteBuilder._readPos - 1);
                 _byteBuilder.EmptyRead(1);
-                _byteBuilder.Append(buff, 1);
+                _byteBuilder.Append(buff, 1, rb);
                 ArrayPool<byte>.Shared.Return(buff);
                 return res;
               }
@@ -143,7 +147,7 @@ namespace Utils
               // alone \n is legal as well
               _byteBuilder.Append(buffer.Slice(0, i));
               res = _byteBuilder.ToString();
-              _byteBuilder.Append(buff, i + 1);
+              _byteBuilder.Append(buff, i + 1, rb);
               ArrayPool<byte>.Shared.Return(buff);
               return res;
             }
@@ -168,9 +172,28 @@ namespace Utils
       return res;
     }
 
-    public void ReadNextSpanOfBytes(int numOfBytes, ref Span<byte> span)
+    public byte[]? GetNextNBytes(int N)
     {
+      if (_byteBuilder.GetUsedSpace() >= N)
+      {
+        return _byteBuilder.ToArray(N);
+      }
+      byte[] buff = ArrayPool<byte>.Shared.Rent(_BPR);
+      Span<byte> buffer = buff.AsSpan(0, _BPR);
+      while (_byteBuilder.GetUsedSpace() < N)
+      {
+        int rb = _socket.Read(ref buffer);
+        if (rb == 0)
+          break;
+        _byteBuilder.Append(buffer);
+      }
       
+      if (_byteBuilder.GetUsedSpace() < N)
+      {
+        return null;
+      }
+      ArrayPool<byte>.Shared.Return(buff);
+      return _byteBuilder.ToArray(N);
     }
     public void Dispose()
     {

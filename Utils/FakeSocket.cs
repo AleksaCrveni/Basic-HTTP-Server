@@ -25,6 +25,18 @@ namespace Utils
       _isSocket = false;
     }
 
+    public Stream GetStream()
+    {
+      if (_isSocket)
+      {
+        return new NetworkStream(_socket);
+      }
+      else
+      {
+        return _stream;
+      }
+    }
+
     public int Read(ref Span<byte> buffer)
     {
       if (_isSocket)
@@ -37,7 +49,7 @@ namespace Utils
       }
     }
 
-    public int Write(ref Span<byte> buffer)
+    public int Write(Span<byte> buffer)
     {
       if (_isSocket)
       {

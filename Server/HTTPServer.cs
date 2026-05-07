@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Buffers;
+using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Net;
 using System.Net.Sockets;
@@ -14,6 +15,8 @@ namespace Server
     public string IP;
     public int PORT;
     public bool _respWithErrors = true; // this is just simple way to block server errors when 500 occurs or when user responds with it
+    public byte[] CRLF = [(byte)'\r', (byte)'\n'];
+    public byte SPACE = (byte)' ';
     public HTTPServer(string ip, int port) 
     {
       IP = ip;
@@ -67,25 +70,14 @@ namespace Server
               Log("Force closed connection!");
               break;
             }
-            try
-            {
-              int sb = s.Send(checkAliveBuffer);
-              if (sb == 0)
-                break;
-            }
-            catch (Exception ex)
-            {
-              Debug.WriteLine($"Exception: {ex.Message}!");
-              break;
-            }
 
             MyHTTPRequest req = new MyHTTPRequest();
             try
             {
-              HttpStatusCode respCode = SocketHelper.ParseRequest(r, ref req);
+              HttpStatusCode respCode = SocketHelper.ParseRequest(r, req);
               if (respCode != HttpStatusCode.OK)
               {
-                SendResponse(MessageHelper.CreateResponse(respCode, null));
+                SendResponse(fs, MessageHelper.CreateResponse(respCode, null));
                 break;
               }
             }
@@ -99,12 +91,13 @@ namespace Server
             catch (Exception ex)
             {
               Debug.WriteLine($"Server error: {ex.Message}");
-              SendResponse(MessageHelper.CreateResponse(HttpStatusCode.InternalServerError, _respWithErrors ? ex.Message : null));
+              SendResponse(fs, MessageHelper.CreateResponse(HttpStatusCode.InternalServerError, _respWithErrors ? ex.Message : null));
               break;
             }
 
             // call method to process based on target
 
+            SendResponse(fs, MessageHelper.CreateResponse(HttpStatusCode.OK, null));
             break;
           }
         }
@@ -119,9 +112,31 @@ namespace Server
       }
     }
 
-    public void SendResponse(MyHTTPResponse r)
+    // Not very efficient fix later maybe
+    public void SendResponse(FakeSocket s, MyHTTPResponse r)
     {
-      
+      Encoding enc = Encoding.Default;
+
+      using (Stream stream = s.GetStream())
+      {
+        stream.Write(enc.GetBytes(r.Version));
+        stream.WriteByte(SPACE);
+        stream.Write(enc.GetBytes(((int)r.Status).ToString()));
+        stream.WriteByte(SPACE);
+        stream.Write(CRLF);
+        foreach (KeyValuePair<string, string> kvp in r.Headers)
+        {
+          stream.Write(enc.GetBytes(kvp.Key));
+          stream.WriteByte((byte)':');
+          stream.WriteByte(SPACE);
+          stream.Write(enc.GetBytes(kvp.Value));
+          stream.Write(CRLF);
+        }
+
+        stream.Write(CRLF);
+        if (r.Body.Length > 0)
+          stream.Write(r.Body);
+      }
     }
 
     public void Log(string s)

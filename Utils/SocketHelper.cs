@@ -14,7 +14,7 @@ namespace Server
     /// <param name="r">Chunk reader that can read from the socket in efficient manner</param>
     /// <param name="request">Request that needs to be filled</param>
     /// <returns>HTTPStatus code that incidates and error if its differnt than 200, if there are any issues with parsing</returns>
-    public static HttpStatusCode ParseRequest(ChunkReader r, ref MyHTTPRequest request)
+    public static HttpStatusCode ParseRequest(ChunkReader r, MyHTTPRequest request)
     {
       string line = r.ReadLine();
       // spec says that we have to allow AT LEAST 1 empty line preceding request line
@@ -54,11 +54,24 @@ namespace Server
       } 
       else
       {
-        r.ReadNextSpanOfBytes(Convert.ToInt32(contentLength), ref bytes);
-        request.Body = bytes;
+        // ?? temp fix
+        int cLen = Convert.ToInt32(contentLength ?? "0");
+        if (cLen == 0)
+        {
+          request.Body = Array.Empty<byte>();
+        }
+        else
+        {
+          byte[]? body = r.GetNextNBytes(cLen);
+          if (body == null)
+          {
+            return HttpStatusCode.BadRequest;
+          }
+          request.Body = body!;
+        }
       }
 
       return HttpStatusCode.OK;
     }
-  }z
+  }
 }

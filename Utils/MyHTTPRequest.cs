@@ -1,10 +1,10 @@
 ﻿namespace Utils
 {
-  public ref struct MyHTTPRequest
+  public class MyHTTPRequest
   {
     public RequestLine RequestLine;
     public Dictionary<string, string> Headers = new Dictionary<string, string>();
-    public Span<byte> Body;
+    public byte[] Body;
     public MyHTTPRequest()
     {
     }

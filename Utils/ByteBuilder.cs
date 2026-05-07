@@ -1,6 +1,5 @@
 ﻿using System.Buffers;
 using System.Diagnostics;
-using System.Runtime.Intrinsics.X86;
 using System.Text;
 
 namespace Utils
@@ -45,11 +44,11 @@ namespace Utils
       _writePos = 0;
     }
 
-    public void Append(byte[] appendBuffer, int start = 0)
+    public void Append(byte[] appendBuffer, int start, int actualSize)
     {
-      if (start + 1 >= appendBuffer.Length)
+      if (start + 1 >= actualSize)
         return;
-      Append(appendBuffer.AsSpan(start));
+      Append(appendBuffer.AsSpan(start, actualSize - start));
     }
     public void Append(Span<byte> appendBuffer)
     {
@@ -148,7 +147,7 @@ namespace Utils
       if (_readPos + size > _writePos)
         throw new InvalidDataException("Chunking unavailble data!");
 
-      string res = enc.GetString(_rentedBuffer.AsSpan(_readPos, _readPos + size));
+      string res = enc.GetString(_rentedBuffer.AsSpan(_readPos, size));
       _readPos += size;
       return res;
     }
@@ -159,6 +158,15 @@ namespace Utils
       // gurantee we dont move past write pos
       int actualMoveSize = Math.Min(size, _writePos - _readPos);
       Debug.Assert(_readPos <= _writePos);
+      _readPos += actualMoveSize;
+    }
+    public int GetUsedSpace() => _writePos - _readPos;
+    public byte[] ToArray() => _rentedBuffer.AsSpan(_readPos, GetUsedSpace()).ToArray();
+    public byte[] ToArray(int size)
+    {
+      if (_readPos + size > _writePos)
+        throw new InvalidDataException("Reading too much data!");
+      return _rentedBuffer.AsSpan(_readPos, size).ToArray();
     }
   }
 }
